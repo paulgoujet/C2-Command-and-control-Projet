@@ -88,7 +88,7 @@ def cmd_sysinfo(sock) -> None:
 
 
 def cmd_list_users(sock) -> None:
-    if IS_WINDOWS:
+    if os_type == "Windows":
         result = run_shell("net user")
     else:
         result = run_shell("cut -d: -f1 /etc/passwd")
