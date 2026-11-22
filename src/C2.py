@@ -73,6 +73,7 @@ class Agent:
         self.hostname = "?"
         self.os = "?"
         self.user = "?"
+        self.reported_ip = "?"
         self.connected_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         self.alive = True
         self.lock = threading.Lock()
@@ -100,20 +101,21 @@ def start_listener():
         t.start()
 
 def handle_new_agent(sock, addr):
-    #Quand un nouveau client se connecte il envoie ses infos
     agent = Agent(sock, addr)
     try:
         info = receiveMessage(sock)
         agent.hostname = info.get("hostname", "?")
         agent.os = info.get("os", "?")
-        agent.user = info.get("ip", "?")
+        # on stocke l'ip déclarée par le client
+        agent.reported_ip = info.get("ip", "?")
+        #user reste "?" tant que le client n'envoie pas de username
     except ConnectionError:
         sock.close()
         return
 
     with agents_lock:
         agents[agent.id] = agent
-    print(f"\nAgent #{agent.id} — {agent.ip}")
+    print(f"\nAgent #{agent.id} — {agent.ip} ({agent.os})")
     print_prompt()
 
 
