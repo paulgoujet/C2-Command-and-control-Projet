@@ -7,7 +7,6 @@ import os
 import mss, mss.tools
 import sys
 import winreg
-from PIL import ImageGrab
 
 
 def run_shell(command):
