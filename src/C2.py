@@ -29,25 +29,28 @@ def send_bytes(sock, blob, meta):
     #ensuite binaires brutes
     sock.sendall(struct.pack(">I", len(blob)) + blob)
 
+#Lit n octets depuis le socket
 def _receiveN(sock, n):
     buf = b""
     while len(buf) < n:
         chunk = sock.recv(n - len(buf))
         if not chunk:
-            return None
+            return None #retourne None si connexion coupée
         buf += chunk
     return buf
 
+#pareil que le message json mais pour la reception
 def receiveMessage(sock):
-    raw_len = _receiveN(sock, 4)
+    raw_len = _receiveN(sock, 4) #lit les 4 octets de taille
     if raw_len is None:
-        raise ConnectionError("connexion coupée par le client")
+        raise ConnectionError("connexion coupée par le client") #si pas de taille connexion coupée
     (msg_len,) = struct.unpack(">I", raw_len)
     data = _receiveN(sock, msg_len)
     if data is None:
-        raise ConnectionError("connexion interrompue en cours de message")
-    return json.loads(data.decode(ENCODING))
+        raise ConnectionError("connexion interrompue en cours de message") #si pas de data connexion coupée
+    return json.loads(data.decode(ENCODING)) #retourne le json décodé en dico python
 
+#reception en binaire mm format que pour json mais en octets bruts
 def receiveBytes(sock):
     raw_len = _receiveN(sock, 4)
     if raw_len is None:
@@ -66,17 +69,17 @@ class Agent:
 
     def __init__(self, sock, addr):
         Agent._counter += 1
-        self.id = Agent._counter
+        self.id = Agent._counter #nouvel ID pour chaque agent
         self.sock = sock
         self.ip = addr[0]
         self.port = addr[1]
-        self.hostname = "?"
+        self.hostname = "?" #tous les champs avec interrogation seront remplis par le client 
         self.os = "?"
         self.user = "?"
         self.reported_ip = "?"
         self.connected_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         self.alive = True
-        self.lock = threading.Lock()
+        self.lock = threading.Lock()  #sécurité pour eviter les commandes simultanées sur le mm socket
 
 agents = {}
 agents_lock = threading.Lock()
@@ -87,17 +90,17 @@ current_agent = None
 
 def start_listener():
     srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1) #permet reutiliser le port rapidemment
     srv.bind((HOST, PORT))
-    srv.listen(5)
+    srv.listen(5) # 5 connexions en attente max
     print(f"Écoute sur {HOST}:{PORT}")
 
     while True:
         try:
-            client_sock, addr = srv.accept()
+            client_sock, addr = srv.accept() #bloque jusqu'à ce qu'un client se connecte
         except OSError:
             break
-        t = threading.Thread(target=handle_new_agent, args=(client_sock, addr), daemon=True)
+        t = threading.Thread(target=handle_new_agent, args=(client_sock, addr), daemon=True) #1 agent = 1 thread
         t.start()
 
 def handle_new_agent(sock, addr):
